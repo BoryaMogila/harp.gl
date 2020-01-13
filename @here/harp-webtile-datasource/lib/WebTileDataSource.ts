@@ -288,6 +288,7 @@ export class WebTileDataSource extends DataSource {
             `https://1.${baseHostName}/maptile/2.1/copyright/${mapId}` +
             `?output=json&app_id=${appId}&app_code=${appCode}`;
         this.m_copyrightProvider = new UrlCopyrightProvider(url, baseScheme);
+        this.isFullyCovering = true;
     }
 
     /** @override */

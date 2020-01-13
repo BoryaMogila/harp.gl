@@ -51,6 +51,12 @@ export abstract class DataSource extends THREE.EventDispatcher {
     addGroundPlane: boolean = false;
 
     /**
+     * Boolean which says whether a [[DataSource]] produces tiles that fully cover the tile, i.e.
+     * tiles underneath are completely hidden.
+     */
+    isFullyCovering: boolean = false;
+
+    /**
      * The [[MapView]] instance holding a reference to this `DataSource`.
      */
     private m_mapView?: MapView;
