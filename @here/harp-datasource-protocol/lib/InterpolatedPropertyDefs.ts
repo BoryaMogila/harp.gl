@@ -71,6 +71,9 @@ export interface InterpolatedProperty {
      * [[StringEncodedNumeral]]s.
      */
     _stringEncodedNumeralDynamicMask?: Float32Array;
+
+    _interpolant: THREE.Interpolant;
+    _maskInterpolant?: THREE.Interpolant;
 }
 
 /**

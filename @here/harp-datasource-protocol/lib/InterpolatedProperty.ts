@@ -172,39 +172,40 @@ export function getPropertyValue(
     return getInterpolatedMetric(property, level, pixelToMeters);
 }
 
+type InterpolantParams = Pick<
+    InterpolatedProperty,
+    "interpolationMode" | "values" | "zoomLevels" | "exponent"
+>;
+
+function createInterpolant(params: InterpolantParams) {
+    const nChannels = params.values.length / params.zoomLevels.length;
+    const interpolant = new interpolants[params.interpolationMode](
+        params.zoomLevels,
+        params.values,
+        nChannels
+    );
+    if (
+        params.interpolationMode === InterpolationMode.Exponential &&
+        params.exponent !== undefined
+    ) {
+        (interpolant as ExponentialInterpolant).exponent = params.exponent;
+    }
+    return interpolant;
+}
+
 function getInterpolatedMetric(
     property: InterpolatedProperty,
     level: number,
     pixelToMeters: number
 ): number {
-    const nChannels = property.values.length / property.zoomLevels.length;
-    const interpolant = new interpolants[property.interpolationMode](
-        property.zoomLevels,
-        property.values,
-        nChannels
-    );
-    if (
-        property.interpolationMode === InterpolationMode.Exponential &&
-        property.exponent !== undefined
-    ) {
-        (interpolant as ExponentialInterpolant).exponent = property.exponent;
-    }
+    const interpolant = property._interpolant;
+
     interpolant.evaluate(level);
 
     if (property._stringEncodedNumeralDynamicMask === undefined) {
         return interpolant.resultBuffer[0];
     } else {
-        const maskInterpolant = new interpolants[property.interpolationMode](
-            property.zoomLevels,
-            property._stringEncodedNumeralDynamicMask,
-            1
-        );
-        if (
-            property.interpolationMode === InterpolationMode.Exponential &&
-            property.exponent !== undefined
-        ) {
-            (maskInterpolant as ExponentialInterpolant).exponent = property.exponent;
-        }
+        const maskInterpolant = property._maskInterpolant!;
         maskInterpolant.evaluate(level);
 
         return (
@@ -216,17 +217,7 @@ function getInterpolatedMetric(
 
 function getInterpolatedColor(property: InterpolatedProperty, level: number): number {
     const nChannels = property.values.length / property.zoomLevels.length;
-    const interpolant = new interpolants[property.interpolationMode](
-        property.zoomLevels,
-        property.values,
-        nChannels
-    );
-    if (
-        property.interpolationMode === InterpolationMode.Exponential &&
-        property.exponent !== undefined
-    ) {
-        (interpolant as ExponentialInterpolant).exponent = property.exponent;
-    }
+    const interpolant = property._interpolant;
     interpolant.evaluate(level);
 
     assert(nChannels === 3 || nChannels === 4);
@@ -269,12 +260,12 @@ export function createInterpolatedProperty(
         default:
         case "number":
         case "boolean":
-            return {
+            return createInterpolatedPropertyInt({
                 interpolationMode,
                 zoomLevels,
                 values: new Float32Array(prop.values as any),
                 exponent: prop.exponent
-            };
+            });
         case "string":
             // TODO: Minimize effort for pre-matching the numeral format.
             const matchedFormat = StringEncodedNumeralFormats.find(format =>
@@ -283,11 +274,11 @@ export function createInterpolatedProperty(
 
             if (matchedFormat === undefined) {
                 if (interpolationMode === InterpolationMode.Discrete) {
-                    return {
+                    return createInterpolatedPropertyInt({
                         interpolationMode,
                         zoomLevels,
                         values: prop.values
-                    };
+                    });
                 }
 
                 logger.error(`No StringEncodedNumeralFormat matched ${firstValue}.`);
@@ -305,15 +296,33 @@ export function createInterpolatedProperty(
                 maskValues
             );
 
-            return {
+            return createInterpolatedPropertyInt({
                 interpolationMode,
                 zoomLevels,
                 values: propValues,
                 exponent: prop.exponent,
                 _stringEncodedNumeralType: matchedFormat.type,
                 _stringEncodedNumeralDynamicMask: needsMask ? maskValues : undefined
-            };
+            });
     }
+}
+
+export function createInterpolatedPropertyInt(
+    params: Omit<InterpolatedProperty, "_interpolant" | "_maskInterpolant">
+): InterpolatedProperty {
+    const result: InterpolatedProperty = {
+        ...params,
+        _interpolant: createInterpolant(params)
+    };
+    if (params._stringEncodedNumeralDynamicMask) {
+        result._maskInterpolant = createInterpolant({
+            interpolationMode: params.interpolationMode,
+            zoomLevels: params.zoomLevels,
+            values: params._stringEncodedNumeralDynamicMask,
+            exponent: params.exponent
+        });
+    }
+    return result;
 }
 
 function removeDuplicatePropertyValues<T>(p: InterpolatedPropertyDefinition<T>) {

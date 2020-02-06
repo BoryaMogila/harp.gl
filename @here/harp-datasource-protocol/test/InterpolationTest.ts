@@ -8,40 +8,57 @@
 //    Mocha discourages using arrow functions, see https://mochajs.org/#arrow-functions
 
 import { assert } from "chai";
-import { getPropertyValue } from "../lib/InterpolatedProperty";
+import { createInterpolatedPropertyInt, getPropertyValue } from "../lib/InterpolatedProperty";
 import { InterpolatedProperty, InterpolationMode } from "../lib/InterpolatedPropertyDefs";
 import { StringEncodedNumeralType } from "../lib/StringEncodedNumeral";
 
 const levels = new Float32Array([0, 5, 10]);
 
-const numberProperty: InterpolatedProperty = {
-    interpolationMode: InterpolationMode.Discrete,
+type InteprolatedPropertyParams = Omit<
+    InterpolatedProperty,
+    "interpolationMode" | "_interpolant" | "_maskInterpolant"
+>;
+
+const numberPropertyDef: InteprolatedPropertyParams = {
     zoomLevels: levels,
     values: [0, 100, 500]
 };
 
-const booleanProperty: InterpolatedProperty = {
-    interpolationMode: InterpolationMode.Discrete,
+const booleanPropertyDef: InteprolatedPropertyParams = {
     zoomLevels: levels,
     values: [true, false, true]
 };
 
-const colorProperty: InterpolatedProperty = {
-    interpolationMode: InterpolationMode.Discrete,
+const colorPropertyDef: InteprolatedPropertyParams = {
     zoomLevels: levels,
     // [r0, g0, b0, r1, g1, b1, ...]
     values: [1, 0, 0, 0, 1, 0, 0, 0, 1],
     _stringEncodedNumeralType: StringEncodedNumeralType.Hex
 };
 
-const enumProperty: InterpolatedProperty = {
-    interpolationMode: InterpolationMode.Discrete,
+const enumPropertyDef: InteprolatedPropertyParams = {
     zoomLevels: levels,
     values: ["Enum0", "Enum1", "Enum2"]
 };
 
 describe("Interpolation", function() {
     it("Discrete", () => {
+        const numberProperty = createInterpolatedPropertyInt({
+            ...numberPropertyDef,
+            interpolationMode: InterpolationMode.Discrete
+        });
+        const booleanProperty = createInterpolatedPropertyInt({
+            ...booleanPropertyDef,
+            interpolationMode: InterpolationMode.Discrete
+        });
+        const colorProperty = createInterpolatedPropertyInt({
+            ...colorPropertyDef,
+            interpolationMode: InterpolationMode.Discrete
+        });
+        const enumProperty = createInterpolatedPropertyInt({
+            ...enumPropertyDef,
+            interpolationMode: InterpolationMode.Discrete
+        });
         assert.strictEqual(getPropertyValue(numberProperty, -Infinity), 0);
         assert.strictEqual(getPropertyValue(numberProperty, 0), 0);
         assert.strictEqual(getPropertyValue(numberProperty, 2.5), 0);
@@ -75,8 +92,14 @@ describe("Interpolation", function() {
         assert.strictEqual(getPropertyValue(enumProperty, Infinity), "Enum2");
     });
     it("Linear", () => {
-        numberProperty.interpolationMode = InterpolationMode.Linear;
-        colorProperty.interpolationMode = InterpolationMode.Linear;
+        const numberProperty = createInterpolatedPropertyInt({
+            ...numberPropertyDef,
+            interpolationMode: InterpolationMode.Linear
+        });
+        const colorProperty = createInterpolatedPropertyInt({
+            ...colorPropertyDef,
+            interpolationMode: InterpolationMode.Linear
+        });
 
         assert.equal(getPropertyValue(numberProperty, -Infinity), 0);
         assert.equal(getPropertyValue(numberProperty, 0), 0);
@@ -97,8 +120,14 @@ describe("Interpolation", function() {
         assert.equal(getPropertyValue(colorProperty, Infinity), 0x0000ff);
     });
     it("Cubic", () => {
-        numberProperty.interpolationMode = InterpolationMode.Cubic;
-        colorProperty.interpolationMode = InterpolationMode.Cubic;
+        const numberProperty = createInterpolatedPropertyInt({
+            ...numberPropertyDef,
+            interpolationMode: InterpolationMode.Cubic
+        });
+        const colorProperty = createInterpolatedPropertyInt({
+            ...colorPropertyDef,
+            interpolationMode: InterpolationMode.Cubic
+        });
 
         assert.equal(getPropertyValue(numberProperty, -Infinity), 0);
         assert.equal(getPropertyValue(numberProperty, 0), 0);
@@ -119,8 +148,14 @@ describe("Interpolation", function() {
         assert.equal(getPropertyValue(colorProperty, Infinity), 0x0000ff);
     });
     it("Exponential", () => {
-        numberProperty.interpolationMode = InterpolationMode.Exponential;
-        colorProperty.interpolationMode = InterpolationMode.Exponential;
+        const numberProperty = createInterpolatedPropertyInt({
+            ...numberPropertyDef,
+            interpolationMode: InterpolationMode.Exponential
+        });
+        const colorProperty = createInterpolatedPropertyInt({
+            ...colorPropertyDef,
+            interpolationMode: InterpolationMode.Exponential
+        });
 
         assert.equal(getPropertyValue(numberProperty, -Infinity), 0);
         assert.equal(getPropertyValue(numberProperty, 0), 0);
