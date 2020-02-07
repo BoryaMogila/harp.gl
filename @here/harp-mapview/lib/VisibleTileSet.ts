@@ -848,19 +848,31 @@ export class VisibleTileSet {
      * Disposes of tiles that overlap twice.
      **/
     private checkDuplicateFullyCoveringTiles(dataSource: DataSource, tile: Tile) {
-        if (dataSource.isFullyCovering && tile.backgroundPlane !== undefined) {
+        if (dataSource.isFullyCovering()) {
             const ts = dataSource.getTilingScheme();
-            if (this.m_coveringMap.get(ts) === undefined) {
-                this.m_coveringMap.set(ts, new Map<number, Tile>());
+            let map = this.m_coveringMap.get(ts)!;
+            if (map === undefined) {
+                map = new Map<number, Tile>();
+                this.m_coveringMap.set(ts, map);
             }
-            const map = this.m_coveringMap.get(ts)!;
             const key = TileOffsetUtils.getKeyForTileKeyAndOffset(tile.tileKey, tile.offset);
             const entry = map.get(key);
             if (entry === undefined) {
                 map.set(key, tile);
             } else {
-                // We know that the backgroundPlane is defined, because we check above
-                if (tile.backgroundPlane.renderOrder > entry.backgroundPlane!.renderOrder) {
+                // If the entry in the map has no backgroundPlane, we treat it to have highest
+                // priority, so we dispose of the newly created tile.
+                if (entry.backgroundPlane === undefined) {
+                    tile.dispose();
+                }
+                // If the newly created tile has no backgroundPlane and the existing entry does then
+                // dispose and replace it in the cache, no backgroundPlane has higher priority.
+                else if (tile.backgroundPlane === undefined) {
+                    entry.dispose();
+                    map.set(key, tile);
+                }
+                // Both planes exist, so we replace if the new [[Tile]] has a higher renderOrder
+                else if (tile.backgroundPlane.renderOrder > entry.backgroundPlane.renderOrder) {
                     // Dispose the Tile, but still keep it in the cache, so the Tile
                     // isn't re-requested.
                     entry.dispose();
@@ -930,9 +942,6 @@ export class VisibleTileSet {
                     tile.offset
                 );
                 tile.levelOffset = 0;
-                if (tile.backgroundPlane !== undefined) {
-                    tile.backgroundPlane.visible = false;
-                }
                 if (tile.hasGeometry || defaultSearchDirection === SearchDirection.NONE) {
                     renderedTiles.set(tileCode, tile);
                 } else {

@@ -228,7 +228,6 @@ export class OmvDataSource extends TileDataSource<OmvTile> {
         this.cacheable = true;
         this.addGroundPlane =
             m_params.addGroundPlane === undefined || m_params.addGroundPlane === true;
-        this.isFullyCovering = true;
 
         this.m_decoderOptions = {
             showMissingTechniques: this.m_params.showMissingTechniques === true,

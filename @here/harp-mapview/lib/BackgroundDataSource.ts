@@ -20,7 +20,7 @@ export class BackgroundDataSource extends DataSource {
     constructor() {
         super("background");
         this.cacheable = true;
-        this.isFullyCovering = true;
+        this.addGroundPlane = true;
     }
 
     updateStorageLevelOffset() {

@@ -8,7 +8,10 @@ import {
     mercatorProjection,
     Projection,
     sphereProjection,
-    TileKey
+    TileKey,
+    TilingScheme,
+    webMercatorTilingScheme,
+    mercatorTilingScheme
 } from "@here/harp-geoutils";
 import { getOptionValue } from "@here/harp-utils";
 import { assert, expect } from "chai";
@@ -24,6 +27,8 @@ import { Tile } from "../lib/Tile";
 import { TileOffsetUtils } from "../lib/Utils";
 import { VisibleTileSet } from "../lib/VisibleTileSet";
 import { FakeOmvDataSource } from "./FakeOmvDataSource";
+import { TileGeometryCreator } from "../lib/geometry/TileGeometryCreator";
+import { DecodedTile } from "@here/harp-datasource-protocol";
 
 // tslint:disable:only-arrow-functions
 //    Mocha discourages using arrow functions, see https://mochajs.org/#arrow-functions
@@ -269,6 +274,137 @@ describe("VisibleTileSet", function() {
             assert.equal(result.tileList.length, 2);
             assert(intersectionSpy.calledTwice);
         }
+    });
+
+    class FakeCoveringTileWMTS extends DataSource {
+        /** @override */
+        addGroundPlane = true;
+        /** @override */
+        getTilingScheme(): TilingScheme {
+            return webMercatorTilingScheme;
+        }
+        /** @override */
+        getTile(tileKey: TileKey): Tile | undefined {
+            const tile = new Tile(this, tileKey);
+            const decodedTile: DecodedTile = { techniques: [], geometries: [] };
+            // !!Ensure a groundPlane is added
+            TileGeometryCreator.instance.createAllGeometries(tile, decodedTile);
+            return tile;
+        }
+    }
+
+    class FakeWebTileWMTS extends DataSource {
+        /** @override */
+        getTilingScheme(): TilingScheme {
+            return webMercatorTilingScheme;
+        }
+        /** @override */
+        getTile(tileKey: TileKey): Tile | undefined {
+            const tile = new Tile(this, tileKey);
+            tile.forceHasGeometry(true);
+            return tile;
+        }
+        /** @override */
+        isFullyCovering(): boolean {
+            return true;
+        }
+    }
+
+    it("two fully covering DataSources added, correct Tile is disposed", async function() {
+        setupBerlinCenterCameraFromSamples();
+        const zoomLevel = 15;
+        const storageLevel = 14;
+
+        // These tiles will be disposed of, because a DataSource that produces [[Tiles]]s without
+        // a background plane, but where isFullyCovering is true trumps.
+        const fullyCoveringDS1 = new FakeCoveringTileWMTS();
+        const fullyCoveringDS2 = new FakeWebTileWMTS();
+        fixture.addDataSource(fullyCoveringDS1);
+        fixture.addDataSource(fullyCoveringDS2);
+
+        // Needed for chai expect.
+        // tslint:disable: no-unused-expression
+        const result = updateRenderList(zoomLevel, storageLevel);
+        result.tileList.forEach(dataSourceTileList => {
+            if (dataSourceTileList.dataSource === fullyCoveringDS1) {
+                dataSourceTileList.visibleTiles.forEach(tile => {
+                    expect(tile.disposed).is.true;
+                });
+            } else if (dataSourceTileList.dataSource === fullyCoveringDS2) {
+                dataSourceTileList.visibleTiles.forEach(tile => {
+                    expect(tile.disposed).is.false;
+                });
+            }
+        });
+    });
+
+    it(`two fully covering DataSources added,
+        reverse order as above correct Tile is disposed`, async function() {
+        setupBerlinCenterCameraFromSamples();
+        const zoomLevel = 15;
+        const storageLevel = 14;
+        const tgc = TileGeometryCreator.instance;
+
+        // These tiles will be disposed of, because a DataSource that produces [[Tiles]]s without
+        // a background plane, but where isFullyCovering is true trumps.
+        const fullyCoveringDS1 = new FakeCoveringTileWMTS();
+        const fullyCoveringDS2 = new FakeWebTileWMTS();
+        fixture.addDataSource(fullyCoveringDS2);
+        fixture.addDataSource(fullyCoveringDS1);
+
+        // Needed for chai expect.
+        // tslint:disable: no-unused-expression
+        const result = updateRenderList(zoomLevel, storageLevel);
+        result.tileList.forEach(dataSourceTileList => {
+            if (dataSourceTileList.dataSource === fullyCoveringDS1) {
+                dataSourceTileList.visibleTiles.forEach(tile => {
+                    expect(tile.disposed).is.true;
+                });
+            } else if (dataSourceTileList.dataSource === fullyCoveringDS2) {
+                dataSourceTileList.visibleTiles.forEach(tile => {
+                    expect(tile.disposed).is.false;
+                });
+            }
+        });
+    });
+
+    it(`two fully covering DataSources added, different TilingSchemes,
+        correct Tile is disposed`, async function() {
+        setupBerlinCenterCameraFromSamples();
+        const zoomLevel = 15;
+        const storageLevel = 14;
+
+        class FakeWebTileWMTS extends DataSource {
+            /** @override */
+            getTilingScheme(): TilingScheme {
+                return webMercatorTilingScheme;
+            }
+            /** @override */
+            getTile(tileKey: TileKey): Tile | undefined {
+                return new Tile(this, tileKey);
+            }
+            /** @override */
+            isFullyCovering(): boolean {
+                return true;
+            }
+        }
+
+        class FakeWebTileMTS extends DataSource {
+            /** @override */
+            getTilingScheme(): TilingScheme {
+                return mercatorTilingScheme;
+            }
+            /** @override */
+            getTile(tileKey: TileKey): Tile | undefined {
+                return new Tile(this, tileKey);
+            }
+            /** @override */
+            isFullyCovering(): boolean {
+                return true;
+            }
+        }
+
+        expect(false);
     });
 
     it("check MapView param tileWrappingEnabled disabled", async function() {
