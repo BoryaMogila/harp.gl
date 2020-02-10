@@ -67,10 +67,10 @@ export namespace GeoJsonHeatmapExample {
         const canvas = document.getElementById(id) as HTMLCanvasElement;
         const mapView = new MapView({
             canvas,
-            theme
+            theme,
+            target: new GeoCoordinates(50.45466, 30.5238),
+            zoomLevel: 7,
         });
-
-        mapView.lookAt(new GeoCoordinates(42, 14), 2000000, 40, -70);
 
         const controls = new MapControls(mapView);
 
@@ -87,7 +87,7 @@ export namespace GeoJsonHeatmapExample {
             apiFormat: APIFormat.XYZOMV,
             styleSetName: "tilezen",
             maxZoomLevel: 17,
-            authenticationCode: accessToken,
+            authenticationCode: 'accessToken',
             copyrightInfo
         });
 
@@ -106,40 +106,28 @@ export namespace GeoJsonHeatmapExample {
         color: string;
         property: string;
     }): StyleSet {
-        const styleSet: StyleSet = [];
-        const length = options.thresholds.length;
-        for (let i = 0; i < length; i++) {
-            const color = new THREE.Color(options.color);
-            color.multiplyScalar(((i + 1) * 0.8) / length + 0.2);
-            const max = options.thresholds[i];
-            const min = i - 1 < 0 ? 0 : options.thresholds[i - 1];
-            // snippet:geojson_heatmap1.ts
-            const propertyName = options.property;
-            const style: StyleDeclaration = {
-                description: "geoJson property-based style",
-                technique: "extruded-polygon",
-                when:
-                    `$geometryType == 'polygon'` +
-                    `&& ${propertyName} > ${min}` +
-                    `&& ${propertyName} <= ${max}`,
+        return [
+
+            {
+                when: "$geometryType == 'point'",
+                technique: "circles",
+                renderOrder: 10001,
                 attr: {
-                    color: "#" + color.getHexString(),
-                    transparent: true,
-                    opacity: 0.8,
-                    constantHeight: true,
-                    boundaryWalls: false,
-                    lineWidth: {
-                        interpolation: "Discrete",
-                        zoomLevels: [10, 11, 12],
-                        values: [1.0, 1.0, 1.0]
-                    }
-                },
-                renderOrder: 1000
-            };
-            // end:geojson_heatmap1.ts
-            styleSet.push(style);
-        }
-        return styleSet;
+                    color: "#ca6",
+                    size: 10
+                }
+            },
+            {
+                when: "description",
+                technique: "text",
+                renderOrder: 10001,
+                attr: {
+                    text: ["get", "description"],
+                    color: "#ca6",
+                    size: 30
+                }
+            },
+        ];
     }
 
     // snippet:geojson_heatmap2.ts
@@ -162,12 +150,13 @@ export namespace GeoJsonHeatmapExample {
 
     const geoJsonDataProvider = new GeoJsonDataProvider(
         "italy",
-        new URL("resources/italy.json", window.location.href)
+        new URL('http://localhost:5555/searchEngine/mapGeoJson/?superlimit=70000')
     );
     const geoJsonDataSource = new OmvDataSource({
         dataProvider: geoJsonDataProvider,
         styleSetName: "geojson"
     });
+    console.time('1')
     baseMap.addDataSource(geoJsonDataSource);
 
     const infoElement = document.getElementById("info") as HTMLParagraphElement;
